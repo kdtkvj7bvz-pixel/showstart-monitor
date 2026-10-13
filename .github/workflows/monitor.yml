@@ -1,5 +1,8 @@
 name: 秀动艺人演出上新监控
 
+permissions:
+  contents: write
+
 on:
   schedule:
     # 每 10 分钟运行一次（GitHub 的 cron 按 UTC，间隔 >= 5 分钟可用）
