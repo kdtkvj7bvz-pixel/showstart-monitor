@@ -3,6 +3,10 @@ name: 秀动艺人演出上新监控
 permissions:
   contents: write
 
+concurrency:
+  group: showstart-monitor
+  cancel-in-progress: true
+
 on:
   schedule:
     # 每 5 分钟运行一次（GitHub 的 cron 按 UTC，最短间隔 5 分钟）
@@ -33,4 +37,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add showstart_state.json
           git commit -m "chore: update showstart monitor state" || echo "状态无变化，无需提交"
+          git pull --rebase origin main || true
           git push
