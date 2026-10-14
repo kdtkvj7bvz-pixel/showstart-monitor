@@ -220,7 +220,7 @@ def main():
             events = parse_events(html)
             for e in events:
                 all_records.append((name, e))
-                key = f"{name}|{e['title']}|{e['date']}"
+                key = f"{name}|{e['id']}"
                 if key not in seen:
                     new_events.append((name, e))
         except Exception as ex:
@@ -229,7 +229,7 @@ def main():
 
     # 更新去重集合并持久化
     for name, e in all_records:
-        seen.add(f"{name}|{e['title']}|{e['date']}")
+        seen.add(f"{name}|{e['id']}")
     state["seen"] = sorted(seen)
     save_state(state)
 
