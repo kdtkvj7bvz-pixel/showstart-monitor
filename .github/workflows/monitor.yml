@@ -9,8 +9,8 @@ concurrency:
 
 on:
   schedule:
-    # 每 5 分钟运行一次（GitHub 的 cron 按 UTC，最短间隔 5 分钟）
-    - cron: '*/5 * * * *'
+    # 每 10 分钟运行一次（GitHub 的 cron 按 UTC，最短间隔 5 分钟）
+    - cron: '*/10 * * * *'
   workflow_dispatch: # 允许在 Actions 页面手动触发，用于首次测试
 
 jobs:
