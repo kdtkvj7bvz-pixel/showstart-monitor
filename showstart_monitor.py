@@ -113,11 +113,18 @@ SLEEP_BETWEEN = 0.5  # 页面间隔，避免过快被限流
 
 
 # ---------------- 工具函数 ----------------
-def http_get(url: str) -> str:
-    """抓取网页文本"""
-    req = urllib.request.Request(url, headers=REQUEST_HEADERS)
-    with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
-        return resp.read().decode("utf-8", errors="replace")
+def http_get(url: str, tries: int = 3) -> str:
+    """抓取网页文本，失败自动重试 tries 次（间隔 2 秒）"""
+    for i in range(tries):
+        try:
+            req = urllib.request.Request(url, headers=REQUEST_HEADERS)
+            with urllib.request.urlopen(req, timeout=FETCH_TIMEOUT) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except Exception:
+            if i < tries - 1:
+                time.sleep(2)
+            else:
+                raise
 
 
 def clean_html(x) -> str:
@@ -242,10 +249,10 @@ def main():
         print("本次无新增演出，状态已更新。")
 
     if errors:
-        print("部分页面抓取失败:", "; ".join(errors))
+        print("部分页面抓取失败（本轮自动重试后仍失败，将在下轮补抓）:", "; ".join(errors))
 
-    # 供外部判断成功与否
-    return 0 if not errors else 2
+    # 部分页面失败不致命（下轮运行会自动补抓），保持成功退出，避免工作流标红报错
+    return 0
 
 
 if __name__ == "__main__":
