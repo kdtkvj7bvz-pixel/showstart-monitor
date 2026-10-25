@@ -2,6 +2,7 @@ name: 秀动艺人演出上新监控
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: showstart-monitor
@@ -9,8 +10,8 @@ concurrency:
 
 on:
   schedule:
-    # 每 10 分钟运行一次（GitHub 的 cron 按 UTC，最短间隔 5 分钟）
-    - cron: '*/10 * * * *'
+    # 每 5 分钟运行一次（兜底；主驱动是工作流末尾的“自触发下一轮”）
+    - cron: '*/5 * * * *'
   workflow_dispatch: # 允许在 Actions 页面手动触发，用于首次测试
 
 jobs:
@@ -39,3 +40,11 @@ jobs:
           git commit -m "chore: update showstart monitor state" || echo "状态无变化，无需提交"
           git pull --rebase origin main || true
           git push
+
+      - name: 触发下一轮检查（自驱动，约 5 分钟一轮，不再受 GitHub 定时延迟影响）
+        run: |
+          curl -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/kdtkvj7bvz-pixel/showstart-monitor/actions/workflows/monitor.yml/dispatches \
+            -d '{"ref":"main"}' || echo "自触发失败，等待下个定时兜底"
