@@ -184,9 +184,12 @@ def ding_send_markdown(text: str, title: str = "秀动新演出提醒") -> str:
 
 
 def load_state() -> dict:
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+    try:
+        if os.path.exists(STATE_FILE):
+            with open(STATE_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        print("警告：状态文件损坏，已重置为空白基线（下次运行会重建全量状态）")
     return {"seen": []}
 
 
