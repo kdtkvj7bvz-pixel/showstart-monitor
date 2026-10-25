@@ -41,7 +41,9 @@ jobs:
           git pull --rebase origin main || true
           git push
 
-      - name: 触发下一轮检查（自驱动，约 5 分钟一轮，不再受 GitHub 定时延迟影响）
+      - name: 触发下一轮检查（自驱动，约 30 秒一轮，不受 GitHub 定时延迟影响）
+        # 无论前面步骤成败都触发下一轮，避免 push 失败导致监控链断裂
+        if: always()
         run: |
           curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
