@@ -110,7 +110,6 @@ REQUEST_HEADERS = {
     "Accept-Language": "zh-CN,zh;q=0.9",
 }
 FETCH_TIMEOUT = 20
-SLEEP_BETWEEN = 0.5  # 页面间隔，避免过快被限流
 MAX_WORKERS = 20     # 并行抓取的线程数（66 位艺人并行抓，大幅缩短每轮耗时）
 
 
@@ -183,14 +182,16 @@ def ding_send_markdown(text: str, title: str = "秀动新演出提醒") -> str:
         return resp.read().decode("utf-8", errors="replace")
 
 
-def load_state() -> dict:
+def load_state():
+    """返回状态 dict；文件缺失或损坏返回 None（调用方按首次运行处理，不会误推送）"""
     try:
         if os.path.exists(STATE_FILE):
             with open(STATE_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
     except Exception:
-        print("警告：状态文件损坏，已重置为空白基线（下次运行会重建全量状态）")
-    return {"seen": []}
+        print("警告：状态文件损坏，将按首次运行重建基线（不会误推送）")
+        return None
+    return None
 
 
 def save_state(state: dict):
@@ -198,9 +199,21 @@ def save_state(state: dict):
         json.dump(state, f, ensure_ascii=False, indent=2)
 
 
+def beijing_now() -> str:
+    """当前北京时间，精确到秒（GitHub runner 时区为 UTC，统一转 +8）"""
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(time.time() + 8 * 3600))
+
+
 def build_markdown(new_events) -> str:
     """构造钉钉 markdown 文本"""
-    lines = ["## 🎤 秀动新演出提醒", "", "以下艺人**有新的演出上新**：", ""]
+    lines = [
+        "## 🎤 秀动新演出提醒",
+        "",
+        f"**发现时间：{beijing_now()}**",
+        "",
+        "以下艺人**有新的演出上新**：",
+        "",
+    ]
     by_artist = {}
     for name, e in new_events:
         by_artist.setdefault(name, []).append(e)
@@ -209,7 +222,7 @@ def build_markdown(new_events) -> str:
         for e in evs:
             price = f"¥{e['price']}起" if e["price"] else "票价待定"
             venue = f"@{e['venue']}" if e["venue"] else ""
-            lines.append(f"- {e['title']}　{e['date']}　{venue}　{price}")
+            lines.append(f"- [{e['title']}](https://www.showstart.com/event/{e['id']})　{e['date']}　{venue}　{price}")
         lines.append("")
     lines.append("数据来源：秀动官网（自动监控）")
     return "\n".join(lines)
@@ -228,15 +241,15 @@ def fetch_artist(name: str, aid: str):
 
 # ---------------- 主流程 ----------------
 def main():
-    first_run = not os.path.exists(STATE_FILE)
     state = load_state()
-    seen = set(state["seen"])
+    first_run = state is None
+    seen = set(state["seen"]) if state else set()
 
     all_records = []   # (name, e)
     new_events = []    # (name, e)
     errors = []
 
-    # 并行抓取所有艺人页面（66 位并发 6 路，总耗时从 3 分钟降到约 20 秒）
+    # 并行抓取所有艺人页面（66 位并发 20 路，总耗时约 4 秒）
     with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         futures = [pool.submit(fetch_artist, name, aid) for name, aid in ARTISTS]
         for fut in concurrent.futures.as_completed(futures):
@@ -250,10 +263,10 @@ def main():
                 if key not in seen:
                     new_events.append((name, e))
 
-    # 更新去重集合并持久化
+    # 更新去重集合并持久化（state 为 None 时（首次/损坏）直接重建）
     for name, e in all_records:
         seen.add(f"{name}|{e['id']}")
-    state["seen"] = sorted(seen)
+    state = {"seen": sorted(seen)}
     save_state(state)
 
     if first_run:
