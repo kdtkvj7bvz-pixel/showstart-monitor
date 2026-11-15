@@ -23,6 +23,7 @@ import json
 import base64
 import hashlib
 import hmac
+import html
 import urllib.parse
 import urllib.request
 import concurrent.futures
@@ -130,10 +131,10 @@ def http_get(url: str, tries: int = 3) -> str:
 
 
 def clean_html(x) -> str:
-    """去掉 HTML 标签并压缩空白"""
+    """去掉 HTML 标签、解码 HTML 实体（如 &amp;）并压缩空白"""
     if not x:
         return ""
-    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", x)).strip()
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", html.unescape(x))).strip()
 
 
 def parse_events(html: str) -> list:
